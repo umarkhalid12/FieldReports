@@ -1,16 +1,15 @@
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import RNFS from 'react-native-fs';
-import {TARGET_IMAGE_BYTES} from '../domain/types';
-import {newId} from '../domain/id';
+import { TARGET_IMAGE_BYTES } from '../domain/types';
+import { newId } from '../domain/id';
 
-// Tried in order until the file is under the target size.
 const ATTEMPTS = [
-  {maxDim: 2048, quality: 80},
-  {maxDim: 2048, quality: 65},
-  {maxDim: 1600, quality: 70},
-  {maxDim: 1600, quality: 55},
-  {maxDim: 1280, quality: 60},
-  {maxDim: 1024, quality: 50},
+  { maxDim: 2048, quality: 80 },
+  { maxDim: 2048, quality: 65 },
+  { maxDim: 1600, quality: 70 },
+  { maxDim: 1600, quality: 55 },
+  { maxDim: 1280, quality: 60 },
+  { maxDim: 1024, quality: 50 },
 ];
 
 export interface ProcessedImage {
@@ -31,45 +30,54 @@ const stripScheme = (uri: string) =>
 export const reportDir = (reportId: string) =>
   `${RNFS.DocumentDirectoryPath}/reports/${reportId}`;
 
-/**
- * Shrinks a picked photo to under the size target and stores it in the
- * app's own folder (safe from the OS cleaning the cache).
- * The resizer runs natively, so the JS thread / UI is not blocked.
- */
 export async function processImage(
   sourceUri: string,
   reportId: string,
 ): Promise<ProcessedImage> {
+  console.info(`[image:${reportId}] Preparing selected photo`);
   const dir = reportDir(reportId);
   await RNFS.mkdir(dir);
   const dest = `${dir}/${newId()}.jpg`;
 
   let lastSize = 0;
-  for (const attempt of ATTEMPTS) {
-    const res = await ImageResizer.createResizedImage(
-      sourceUri,
-      attempt.maxDim,
-      attempt.maxDim,
-      'JPEG',
-      attempt.quality,
-      0,
-      undefined,
-      false,
-      {mode: 'contain', onlyScaleDown: true},
-    );
-    const tmpPath = stripScheme(res.uri);
+  try {
+    for (const [index, attempt] of ATTEMPTS.entries()) {
+      console.info(
+        `[image:${reportId}] Resize attempt ${index + 1}/${ATTEMPTS.length} ` +
+          `(max ${attempt.maxDim}px, quality ${attempt.quality})`,
+      );
+      const res = await ImageResizer.createResizedImage(
+        sourceUri,
+        attempt.maxDim,
+        attempt.maxDim,
+        'JPEG',
+        attempt.quality,
+        0,
+        undefined,
+        false,
+        { mode: 'contain', onlyScaleDown: true },
+      );
+      if (!res?.uri) {
+        throw new Error('Image resizer returned no output URI');
+      }
+      const tmpPath = stripScheme(res.uri);
 
-    // Never trust the reported size: measure the real file.
-    const stat = await RNFS.stat(tmpPath);
-    lastSize = Number(stat.size);
+      const stat = await RNFS.stat(tmpPath);
+      lastSize = Number(stat.size);
+      console.info(`[image:${reportId}] Resized photo is ${lastSize} bytes`);
 
-    if (lastSize <= TARGET_IMAGE_BYTES) {
-      await RNFS.moveFile(tmpPath, dest);
-      return {localPath: dest, sizeBytes: lastSize};
+      if (lastSize <= TARGET_IMAGE_BYTES) {
+        await RNFS.moveFile(tmpPath, dest);
+        console.info(`[image:${reportId}] Photo prepared successfully`);
+        return { localPath: dest, sizeBytes: lastSize };
+      }
+      await RNFS.unlink(tmpPath).catch(() => {});
     }
-    await RNFS.unlink(tmpPath).catch(() => {});
+    throw new ImageTooLargeError(lastSize);
+  } catch (error) {
+    console.error(`[image:${reportId}] Photo preparation failed`, error);
+    throw error;
   }
-  throw new ImageTooLargeError(lastSize);
 }
 
 export async function deleteImageFile(path: string): Promise<void> {

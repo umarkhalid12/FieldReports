@@ -1,45 +1,51 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React, {useEffect} from 'react';
+import {StatusBar} from 'react-native';
+import {NavigationContainer} from '@react-navigation/native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {startRuntime} from './src/services/runtime';
+import ReportsScreen from './src/ui/ReportsScreen';
+import ComposeScreen from './src/ui/ComposeScreen';
+import ServerScreen from './src/ui/ServerScreen';
+import type {RootStackParamList} from './src/ui/navigation';
+import {colors} from './src/ui/theme';
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+export default function App() {
+  useEffect(() => {
+    startRuntime();
+  }, []);
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <StatusBar barStyle="dark-content" />
+      <NavigationContainer>
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: {backgroundColor: colors.card},
+            headerTintColor: colors.ink,
+            headerTitleStyle: {fontSize: 18, fontWeight: '700'},
+            headerShadowVisible: false,
+            contentStyle: {backgroundColor: colors.bg},
+          }}>
+          <Stack.Screen
+            name="Reports"
+            component={ReportsScreen}
+            options={{title: 'Field reports'}}
+          />
+          <Stack.Screen
+            name="Compose"
+            component={ComposeScreen}
+            options={{title: 'New report'}}
+          />
+          <Stack.Screen
+            name="Server"
+            component={ServerScreen}
+            options={{title: 'Server archive'}}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
     </SafeAreaProvider>
   );
 }
-
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
-
-export default App;
