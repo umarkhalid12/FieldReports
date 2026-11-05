@@ -3,8 +3,6 @@ import {Report} from '../domain/types';
 
 const KEY = 'field-reports:v1';
 
-// All reads and writes go through one chain, so two updates can never
-// overwrite each other (for example a progress update and a new report).
 let chain: Promise<unknown> = Promise.resolve();
 function serialize<T>(fn: () => Promise<T>): Promise<T> {
   const next = chain.then(fn, fn);
@@ -33,7 +31,6 @@ export const storage = {
     return serialize(readAll);
   },
 
-  /** Insert or replace a report. Resolves only after it is on disk. */
   saveReport(report: Report): Promise<void> {
     return serialize(async () => {
       const all = await readAll();
@@ -47,7 +44,6 @@ export const storage = {
     });
   },
 
-  /** Read-modify-write of one report, safely. Returns the new value. */
   updateReport(
     id: string,
     mutate: (r: Report) => Report,
@@ -71,10 +67,6 @@ export const storage = {
     });
   },
 
-  /**
-   * Call once at app start. An "uploading" report means the app was killed
-   * mid-attempt, so it goes back to "queued" and will be retried.
-   */
   recoverInterrupted(): Promise<void> {
     return serialize(async () => {
       const all = await readAll();

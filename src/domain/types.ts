@@ -8,13 +8,13 @@ export type ReportStatus =
 
 export interface ReportImage {
   index: number;
-  localPath: string; // file inside the app's own folder
+  localPath: string;
   sizeBytes: number;
   status: ImageStatus;
 }
 
 export interface Report {
-  id: string; // created on the phone, used as the idempotency key
+  id: string;
   description: string;
   createdAt: number;
   status: ReportStatus;
@@ -25,5 +25,5 @@ export interface Report {
 
 export const MAX_IMAGES = 5;
 export const MIN_IMAGES = 1;
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // hard ceiling
-export const TARGET_IMAGE_BYTES = 4.5 * 1024 * 1024; // what we aim for
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const TARGET_IMAGE_BYTES = 4.5 * 1024 * 1024;
